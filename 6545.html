@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ترجمه متن داخل عکس (رایگان)</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: Tahoma, "Vazirmatn", Arial, sans-serif;
+    background: #f4f4f2;
+    margin: 0;
+    padding: 24px 16px;
+    color: #222;
+    display: flex;
+    justify-content: center;
+  }
+  .wrap { max-width: 640px; width: 100%; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; text-align: center; }
+  .sub { text-align: center; color: #666; font-size: 14px; margin: 0 0 24px; }
+
+  .card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  label { display: block; font-size: 13px; color: #555; margin-bottom: 6px; }
+  select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fff;
+  }
+  .hint { font-size: 12px; color: #888; margin-top: 6px; line-height: 1.6; }
+
+  #drop {
+    border: 2px dashed #bbb;
+    border-radius: 12px;
+    padding: 40px 16px;
+    text-align: center;
+    cursor: pointer;
+    background: #fafafa;
+    transition: border-color .15s;
+  }
+  #drop:hover, #drop.drag { border-color: #0f6e56; background: #f0f8f5; }
+  #drop svg { width: 32px; height: 32px; stroke: #888; margin-bottom: 8px; }
+  #drop p { margin: 4px 0; }
+  #drop .main { font-size: 15px; font-weight: 500; }
+  #drop .small { font-size: 12px; color: #999; }
+
+  #preview { display: none; text-align: center; margin-top: 16px; }
+  #preview img { max-width: 100%; max-height: 280px; border-radius: 10px; border: 1px solid #ddd; }
+
+  #status {
+    display: none;
+    margin-top: 16px;
+    text-align: center;
+    font-size: 14px;
+    color: #555;
+  }
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid #ccc;
+    border-top-color: #0f6e56;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: -2px;
+    margin-left: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #progressBarWrap {
+    display: none;
+    margin-top: 10px;
+    background: #eee;
+    border-radius: 6px;
+    height: 8px;
+    overflow: hidden;
+  }
+  #progressBar {
+    height: 100%;
+    width: 0%;
+    background: #0f6e56;
+    transition: width .2s;
+  }
+
+  #result { display: none; margin-top: 20px; }
+  .box {
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+  }
+  .box.original { background: #f5f5f5; border: 1px solid #e0e0e0; }
+  .box.translated { background: #e6f1fb; border: 1px solid #b5d4f4; }
+  .box p.label { font-size: 12px; color: #888; margin: 0 0 8px; }
+  .box.translated p.label { color: #185fa5; }
+  .box p.text { font-size: 15px; line-height: 1.8; margin: 0; white-space: pre-wrap; }
+  .box.translated p.text { font-weight: 500; font-size: 16px; }
+
+  button {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    background: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  button:hover { background: #f2f2f2; }
+
+  #errorBox {
+    display: none;
+    margin-top: 16px;
+    background: #fcebeb;
+    border: 1px solid #f0a3a3;
+    color: #a32d2d;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  input[type="file"] { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ترجمه متن داخل عکس (رایگان)</h1>
+  <p class="sub">بدون نیاز به کلید API — همه‌چیز رایگان و در همین مرورگر انجام می‌شود</p>
+
+  <div class="card">
+    <label for="langSelect">زبان متن داخل عکس</label>
+    <select id="langSelect">
+      <option value="eng">انگلیسی</option>
+      <option value="ara">عربی</option>
+      <option value="fas">فارسی</option>
+      <option value="tur">ترکی</option>
+      <option value="fra">فرانسوی</option>
+      <option value="deu">آلمانی</option>
+      <option value="spa">اسپانیایی</option>
+      <option value="rus">روسی</option>
+      <option value="chi_sim">چینی</option>
+      <option value="jpn">ژاپنی</option>
+      <option value="kor">کره‌ای</option>
+    </select>
+    <p class="hint">زبان درست متن داخل عکس را انتخاب کنید تا دقت تشخیص متن بالاتر برود.</p>
+  </div>
+
+  <div class="card">
+    <div id="drop">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M4 17v3a2 2 0 002 2h12a2 2 0 002-2v-3"/>
+      </svg>
+      <p class="main">عکس را اینجا رها کنید یا کلیک کنید</p>
+      <p class="small">فقط فایل تصویری (JPG, PNG و ...)</p>
+      <input type="file" id="fileInput" accept="image/*" />
+    </div>
+
+    <div id="preview"><img id="imgPreview" /></div>
+
+    <div id="status">
+      <span class="spinner"></span><span id="statusText">در حال پردازش تصویر...</span>
+      <div id="progressBarWrap"><div id="progressBar"></div></div>
+    </div>
+
+    <div id="result">
+      <div class="box original">
+        <p class="label">متن اصلی شناسایی‌شده</p>
+        <p class="text" id="originalText"></p>
+      </div>
+      <div class="box translated">
+        <p class="label">ترجمه فارسی</p>
+        <p class="text" id="translatedText"></p>
+      </div>
+      <button id="resetBtn">عکس دیگر</button>
+    </div>
+
+    <div id="errorBox"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
+<script>
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('fileInput');
+const preview = document.getElementById('preview');
+const imgPreview = document.getElementById('imgPreview');
+const statusBox = document.getElementById('status');
+const statusText = document.getElementById('statusText');
+const progressBarWrap = document.getElementById('progressBarWrap');
+const progressBar = document.getElementById('progressBar');
+const resultBox = document.getElementById('result');
+const originalText = document.getElementById('originalText');
+const translatedText = document.getElementById('translatedText');
+const errorBox = document.getElementById('errorBox');
+const resetBtn = document.getElementById('resetBtn');
+const langSelect = document.getElementById('langSelect');
+
+drop.addEventListener('click', () => fileInput.click());
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+drop.addEventListener('drop', e => {
+  e.preventDefault();
+  drop.classList.remove('drag');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+resetBtn.addEventListener('click', () => {
+  preview.style.display = 'none';
+  resultBox.style.display = 'none';
+  errorBox.style.display = 'none';
+  drop.style.display = 'block';
+  fileInput.value = '';
+});
+
+function handleFile(file) {
+  if (!file.type.startsWith('image/')) return;
+
+  errorBox.style.display = 'none';
+  resultBox.style.display = 'none';
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const dataUrl = e.target.result;
+    imgPreview.src = dataUrl;
+    preview.style.display = 'block';
+    drop.style.display = 'none';
+    await processImage(dataUrl);
+  };
+  reader.readAsDataURL(file);
+}
+
+async function processImage(dataUrl) {
+  statusBox.style.display = 'block';
+  progressBarWrap.style.display = 'block';
+  statusText.textContent = 'در حال شناسایی متن تصویر...';
+  progressBar.style.width = '0%';
+
+  try {
+    const lang = langSelect.value;
+
+    const ocrResult = await Tesseract.recognize(dataUrl, lang, {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          progressBar.style.width = Math.round(m.progress * 100) + '%';
+        }
+      }
+    });
+
+    const rawText = (ocrResult.data.text || '').trim();
+
+    if (!rawText) {
+      originalText.textContent = 'متنی در تصویر یافت نشد';
+      translatedText.textContent = 'متنی در تصویر یافت نشد';
+      statusBox.style.display = 'none';
+      resultBox.style.display = 'block';
+      return;
+    }
+
+    originalText.textContent = rawText;
+    statusText.textContent = 'در حال ترجمه به فارسی...';
+    progressBarWrap.style.display = 'none';
+
+    const translated = await translateText(rawText, lang);
+    translatedText.textContent = translated || 'ترجمه ناموفق بود';
+
+    statusBox.style.display = 'none';
+    resultBox.style.display = 'block';
+  } catch (err) {
+    statusBox.style.display = 'none';
+    errorBox.style.display = 'block';
+    errorBox.textContent = 'خطا: ' + (err.message || 'پردازش تصویر با مشکل مواجه شد. دوباره تلاش کنید.');
+    console.error(err);
+  }
+}
+
+// Map Tesseract lang codes to translate source codes
+const langMap = {
+  eng: 'en', ara: 'ar', fas: 'fa', tur: 'tr', fra: 'fr',
+  deu: 'de', spa: 'es', rus: 'ru', chi_sim: 'zh', jpn: 'ja', kor: 'ko'
+};
+
+async function translateText(text, ocrLang) {
+  const source = langMap[ocrLang] || 'auto';
+  // Split into chunks to respect free endpoint limits
+  const chunks = text.match(/[\s\S]{1,450}/g) || [text];
+  let results = [];
+  for (const chunk of chunks) {
+    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' +
+      source + '&tl=fa&dt=t&q=' + encodeURIComponent(chunk);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('سرویس ترجمه رایگان در دسترس نیست');
+    const data = await res.json();
+    const piece = (data[0] || []).map(seg => seg[0]).join('');
+    results.push(piece);
+  }
+  return results.join(' ');
+}
+</script>
+</body>
+</html>
