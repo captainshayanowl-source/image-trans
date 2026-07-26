@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ترجمه متن داخل عکس</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: Tahoma, "Vazirmatn", Arial, sans-serif;
+    background: #FFF8E7;
+    margin: 0;
+    padding: 24px 16px;
+    color: #222;
+    display: flex;
+    justify-content: center;
+  }
+  .wrap { max-width: 640px; width: 100%; }
+  h1 { font-size: 36px; font-weight: 800; margin: 0 0 16px; text-align: center; color: #1F2A44; }
+  .sub {
+    text-align: center;
+    color: #000;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.7;
+    margin: 0 0 24px;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.6), 0 -1px 1px rgba(0,0,0,0.3);
+  }
+
+  .card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card.lang-card { border: 2px solid #141C30; background: #1F2A44; }
+  .card.upload-card {
+    border: 2px solid #C9A400;
+    background: linear-gradient(120deg, #fff6cc 0%, #F5CD00 35%, #e0b400 50%, #F5CD00 65%, #fff6cc 100%);
+    background-size: 300% 300%;
+    animation: goldShine 6s ease-in-out infinite;
+  }
+  @keyframes goldShine {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  label { display: block; font-size: 13px; color: #F2B84B; font-weight: 700; margin-bottom: 6px; }
+  select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px dashed #FF8C42;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #FAF3E8;
+    color: #1F2A44;
+    font-weight: 600;
+  }
+  .hint { font-size: 12px; color: #F2B84B; font-weight: 600; margin-top: 6px; line-height: 1.6; }
+
+  #drop {
+    border: 2px dashed #fff;
+    border-radius: 12px;
+    padding: 40px 16px;
+    text-align: center;
+    cursor: pointer;
+    background: #1F2A44;
+    transition: border-color .15s, background .15s;
+  }
+  #drop:hover, #drop.drag { border-color: #F2B84B; background: #263650; }
+  #drop svg { width: 32px; height: 32px; stroke: #F2B84B; margin-bottom: 8px; }
+  #uploadIcon {
+    animation: floatUp 1.4s ease-in-out infinite;
+  }
+  @keyframes floatUp {
+    0%   { transform: translateY(0); }
+    50%  { transform: translateY(-6px); }
+    100% { transform: translateY(0); }
+  }
+  #drop p { margin: 4px 0; }
+  #drop .main { font-size: 15px; font-weight: 700; color: #FAF3E8; }
+  #drop .small { font-size: 12px; color: #9fa9c0; }
+
+  #preview { display: none; text-align: center; margin-top: 16px; }
+  #cropWrap { position: relative; display: inline-block; max-width: 100%; }
+  #preview img { max-width: 100%; max-height: 280px; border-radius: 10px; border: 1px solid #ddd; display: block; }
+  #cropCanvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border-radius: 10px;
+    cursor: crosshair;
+  }
+  .cropHint { font-size: 12px; color: #666; margin: 8px 0 0; }
+  #scanCropBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  #status {
+    display: none;
+    margin-top: 16px;
+    text-align: center;
+    font-size: 14px;
+    color: #555;
+  }
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid #ccc;
+    border-top-color: #1F2A44;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: -2px;
+    margin-left: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #progressBarWrap {
+    display: none;
+    margin-top: 10px;
+    background: #eee;
+    border-radius: 6px;
+    height: 8px;
+    overflow: hidden;
+  }
+  #progressBar {
+    height: 100%;
+    width: 0%;
+    background: #F2B84B;
+    transition: width .2s;
+  }
+
+  #result { display: none; margin-top: 20px; }
+  .box {
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+  }
+  .box.original { background: #367588; border: 1px solid #2a5c6b; }
+  .box.translated { background: #E8ECF3; border: 1px solid #1F2A44; }
+  .box p.label { font-size: 12px; color: #fff; font-weight: 700; margin: 0 0 8px; }
+  .box.translated p.label { color: #1F2A44; }
+  .box p.text { font-size: 15px; line-height: 1.8; margin: 0; white-space: pre-wrap; }
+  .box.translated p.text { font-weight: 500; font-size: 16px; color: #1F2A44; }
+
+  #originalTextArea {
+    width: 100%;
+    min-height: 70px;
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 1.8;
+    border: 1px solid #2a5c6b;
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: #fdfaf5;
+    resize: vertical;
+    direction: ltr;
+    text-align: left;
+  }
+  .editHint { font-size: 11px; color: #eaf5f7; margin: 6px 0 0; }
+
+  button {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    background: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  button:hover { background: #f2f2f2; }
+  button.primary { background: #1F2A44; border-color: #1F2A44; color: #fff; font-weight: 600; }
+  button.primary:hover { background: #16203a; }
+  button.secondary { background: #fdfaf5; border-color: #2a5c6b; color: #367588; font-weight: 600; }
+  button.secondary:hover { background: #eef3f4; }
+  button.turquoise { background: #40E0D0; border-color: #2fb8aa; color: #063d38; font-weight: 700; }
+  button.turquoise:hover { background: #33cfc0; }
+
+  #errorBox {
+    display: none;
+    margin-top: 16px;
+    background: #fcebeb;
+    border: 1px solid #f0a3a3;
+    color: #a32d2d;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  input[type="file"] { display: none; }
+
+  #footerCredit {
+    position: fixed;
+    bottom: 8px;
+    left: 12px;
+    font-size: 11px;
+    color: #e02424;
+    font-weight: 600;
+    direction: rtl;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ترجمه متن داخل عکس</h1>
+  <p class="sub">ابزار هوشمند برای ترجمه‌ی عکس<br>بدون نیاز به فیلتر شکن</p>
+
+  <div class="card lang-card">
+    <label for="langSelect">زبان متن داخل عکس</label>
+    <select id="langSelect">
+      <option value="eng">انگلیسی</option>
+      <option value="ara">عربی</option>
+      <option value="fas">فارسی</option>
+      <option value="tur">ترکی</option>
+      <option value="fra">فرانسوی</option>
+      <option value="deu">آلمانی</option>
+      <option value="spa">اسپانیایی</option>
+      <option value="rus">روسی</option>
+      <option value="chi_sim">چینی</option>
+      <option value="jpn">ژاپنی</option>
+      <option value="kor">کره‌ای</option>
+    </select>
+    <p class="hint">زبان درست متن داخل عکس را انتخاب کنید تا دقت تشخیص متن بالاتر برود.</p>
+  </div>
+
+  <div class="card upload-card">
+    <div id="drop">
+      <svg id="uploadIcon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M4 17v3a2 2 0 002 2h12a2 2 0 002-2v-3"/>
+      </svg>
+      <p class="main">عکس را اینجا رها کنید یا کلیک کنید</p>
+      <p class="small">فقط فایل تصویری (JPG, PNG و ...)</p>
+      <input type="file" id="fileInput" accept="image/*" />
+    </div>
+
+    <div id="preview">
+      <div id="cropWrap">
+        <img id="imgPreview" />
+        <canvas id="cropCanvas"></canvas>
+      </div>
+      <p class="cropHint">می‌توانید با کشیدن موس، فقط دور متن مورد نظر را برای دقت بیشتر انتخاب کنید (اختیاری)</p>
+      <button id="scanCropBtn" class="turquoise" disabled>برش و اسکن ناحیه انتخاب‌شده</button>
+      <button id="scanFullBtn" class="secondary">اسکن کل عکس</button>
+    </div>
+
+
+
+    <div id="status">
+      <span class="spinner"></span><span id="statusText">در حال پردازش تصویر...</span>
+      <div id="progressBarWrap"><div id="progressBar"></div></div>
+    </div>
+
+    <div id="result">
+      <div class="box original">
+        <p class="label">متن اصلی شناسایی‌شده (قابل ویرایش)</p>
+        <textarea id="originalTextArea" spellcheck="false"></textarea>
+        <p class="editHint">اگر متن اشتباه تشخیص داده شده، اصلاحش کن و «ترجمه مجدد» را بزن.</p>
+        <button id="retranslateBtn" class="secondary">ترجمه مجدد با متن ویرایش‌شده</button>
+      </div>
+      <div class="box translated">
+        <p class="label">ترجمه فارسی</p>
+        <p class="text" id="translatedText"></p>
+      </div>
+      <button id="resetBtn" class="primary">عکس دیگر</button>
+      <button id="openGoogleBtn" class="turquoise">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px; margin-left:4px;"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>
+        باز کردن ترجمه در گوگل ترنسلیت (سایت اصلی)
+      </button>
+    </div>
+
+    <div id="errorBox"></div>
+  </div>
+</div>
+
+<div id="footerCredit">ساخته شده توسط شایان ساجدی 🇮🇷</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
+<script>
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('fileInput');
+const preview = document.getElementById('preview');
+const imgPreview = document.getElementById('imgPreview');
+const cropCanvas = document.getElementById('cropCanvas');
+const scanCropBtn = document.getElementById('scanCropBtn');
+const scanFullBtn = document.getElementById('scanFullBtn');
+const statusBox = document.getElementById('status');
+const statusText = document.getElementById('statusText');
+const progressBarWrap = document.getElementById('progressBarWrap');
+const progressBar = document.getElementById('progressBar');
+const resultBox = document.getElementById('result');
+const originalTextArea = document.getElementById('originalTextArea');
+const translatedText = document.getElementById('translatedText');
+const errorBox = document.getElementById('errorBox');
+const resetBtn = document.getElementById('resetBtn');
+const openGoogleBtn = document.getElementById('openGoogleBtn');
+const retranslateBtn = document.getElementById('retranslateBtn');
+const langSelect = document.getElementById('langSelect');
+let lastRawText = '';
+let lastSourceLang = 'auto';
+
+drop.addEventListener('click', () => fileInput.click());
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+drop.addEventListener('drop', e => {
+  e.preventDefault();
+  drop.classList.remove('drag');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+resetBtn.addEventListener('click', () => {
+  preview.style.display = 'none';
+  resultBox.style.display = 'none';
+  errorBox.style.display = 'none';
+  drop.style.display = 'block';
+  fileInput.value = '';
+  fileInput.click();
+});
+
+openGoogleBtn.addEventListener('click', () => {
+  const joined = originalTextArea.value.split(/\n+/).map(l => l.trim()).filter(Boolean).join(' ');
+  const url = 'https://translate.google.com/?sl=' + lastSourceLang +
+    '&tl=fa&text=' + encodeURIComponent(joined) + '&op=translate';
+  window.open(url, '_blank');
+});
+
+retranslateBtn.addEventListener('click', async () => {
+  const editedText = originalTextArea.value.trim();
+  if (!editedText) return;
+  lastRawText = editedText;
+  retranslateBtn.disabled = true;
+  retranslateBtn.textContent = 'در حال ترجمه...';
+  try {
+    const translated = await translateText(editedText, langSelect.value);
+    translatedText.textContent = translated || 'ترجمه ناموفق بود';
+  } catch (err) {
+    errorBox.style.display = 'block';
+    errorBox.textContent = 'خطا: ' + (err.message || 'ترجمه انجام نشد.');
+  } finally {
+    retranslateBtn.disabled = false;
+    retranslateBtn.textContent = 'ترجمه مجدد با متن ویرایش‌شده';
+  }
+});
+
+let originalImageEl = null;
+let cropRect = null; // {x, y, w, h} in canvas display pixels
+let cropDragStart = null;
+let currentDataUrl = null;
+
+function handleFile(file) {
+  if (!file.type.startsWith('image/')) return;
+
+  errorBox.style.display = 'none';
+  resultBox.style.display = 'none';
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const dataUrl = e.target.result;
+    currentDataUrl = dataUrl;
+    imgPreview.src = dataUrl;
+    preview.style.display = 'block';
+    drop.style.display = 'none';
+    cropRect = null;
+    scanCropBtn.disabled = true;
+    cropCanvas.style.display = 'block';
+    document.querySelector('.cropHint').style.display = 'block';
+    scanCropBtn.style.display = 'block';
+    scanFullBtn.style.display = 'block';
+
+    imgPreview.onload = () => {
+      originalImageEl = imgPreview;
+      setupCropCanvas();
+    };
+  };
+  reader.readAsDataURL(file);
+}
+
+function setupCropCanvas() {
+  // Match canvas pixel size to the displayed image size so drawing lines up
+  cropCanvas.width = imgPreview.clientWidth;
+  cropCanvas.height = imgPreview.clientHeight;
+  const ctx = cropCanvas.getContext('2d');
+  ctx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+}
+
+function getCanvasPos(evt) {
+  const rect = cropCanvas.getBoundingClientRect();
+  const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+  const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+  return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+function drawCropOverlay() {
+  const ctx = cropCanvas.getContext('2d');
+  ctx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+  if (!cropRect) return;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
+  ctx.clearRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+  ctx.strokeStyle = '#40E0D0';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+}
+
+function startCropDrag(evt) {
+  evt.preventDefault();
+  const pos = getCanvasPos(evt);
+  cropDragStart = pos;
+  cropRect = { x: pos.x, y: pos.y, w: 0, h: 0 };
+}
+function moveCropDrag(evt) {
+  if (!cropDragStart) return;
+  evt.preventDefault();
+  const pos = getCanvasPos(evt);
+  cropRect = {
+    x: Math.min(cropDragStart.x, pos.x),
+    y: Math.min(cropDragStart.y, pos.y),
+    w: Math.abs(pos.x - cropDragStart.x),
+    h: Math.abs(pos.y - cropDragStart.y)
+  };
+  drawCropOverlay();
+}
+function endCropDrag() {
+  if (!cropDragStart) return;
+  cropDragStart = null;
+  scanCropBtn.disabled = !(cropRect && cropRect.w > 10 && cropRect.h > 10);
+}
+
+cropCanvas.addEventListener('mousedown', startCropDrag);
+cropCanvas.addEventListener('mousemove', moveCropDrag);
+cropCanvas.addEventListener('mouseup', endCropDrag);
+cropCanvas.addEventListener('mouseleave', endCropDrag);
+cropCanvas.addEventListener('touchstart', startCropDrag);
+cropCanvas.addEventListener('touchmove', moveCropDrag);
+cropCanvas.addEventListener('touchend', endCropDrag);
+
+function getCroppedDataUrl() {
+  // Map the on-screen selection rectangle back to the image's real pixel size
+  const scaleX = originalImageEl.naturalWidth / cropCanvas.width;
+  const scaleY = originalImageEl.naturalHeight / cropCanvas.height;
+  const sx = cropRect.x * scaleX;
+  const sy = cropRect.y * scaleY;
+  const sw = cropRect.w * scaleX;
+  const sh = cropRect.h * scaleY;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = sw;
+  canvas.height = sh;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(originalImageEl, sx, sy, sw, sh, 0, 0, sw, sh);
+  return canvas.toDataURL('image/png');
+}
+
+scanFullBtn.addEventListener('click', () => {
+  processImage(currentDataUrl);
+});
+
+scanCropBtn.addEventListener('click', () => {
+  if (!cropRect || cropRect.w <= 10 || cropRect.h <= 10) return;
+  const croppedDataUrl = getCroppedDataUrl();
+  processImage(croppedDataUrl);
+});
+
+// Upscales the image and boosts contrast/grayscale to help Tesseract
+// recognize characters more accurately (especially thin or small letters).
+function preprocessImage(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        const contrast = 45; // -255..255
+        const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+        for (let i = 0; i < data.length; i += 4) {
+          let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          gray = factor * (gray - 128) + 128;
+          gray = Math.max(0, Math.min(255, gray));
+          data[i] = data[i + 1] = data[i + 2] = gray;
+        }
+        ctx.putImageData(imageData, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      } catch (err) {
+        resolve(dataUrl); // fall back to original on any processing error
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+async function processImage(dataUrl) {
+  cropCanvas.style.display = 'none';
+  document.querySelector('.cropHint').style.display = 'none';
+  scanCropBtn.style.display = 'none';
+  scanFullBtn.style.display = 'none';
+  statusBox.style.display = 'block';
+  progressBarWrap.style.display = 'block';
+  statusText.textContent = 'در حال آماده‌سازی تصویر...';
+  progressBar.style.width = '0%';
+
+  try {
+    const lang = langSelect.value;
+    const enhancedDataUrl = await preprocessImage(dataUrl);
+
+    statusText.textContent = 'در حال شناسایی متن تصویر...';
+    const recognizeOptions = {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          progressBar.style.width = Math.round(m.progress * 100) + '%';
+        }
+      }
+    };
+    // When English is selected, restrict Tesseract to only the English
+    // letters, digits, and common punctuation — this stops it from
+    // "inventing" random symbols out of icons/noise, since anything
+    // outside this list simply won't be matched.
+    if (lang === 'eng') {
+      recognizeOptions.tessedit_char_whitelist =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,!?'\"’‘\u201C\u201D-:;()&@";
+    }
+
+    const ocrResult = await Tesseract.recognize(enhancedDataUrl, lang, recognizeOptions);
+
+    const rawText = filterMainText(ocrResult.data);
+
+    if (!rawText) {
+      originalTextArea.value = 'متنی در تصویر یافت نشد';
+      translatedText.textContent = 'متنی در تصویر یافت نشد';
+      statusBox.style.display = 'none';
+      resultBox.style.display = 'block';
+      return;
+    }
+
+    originalTextArea.value = rawText;
+    lastRawText = rawText;
+    lastSourceLang = langMap[lang] || 'auto';
+    statusText.textContent = 'در حال ترجمه به فارسی...';
+    progressBarWrap.style.display = 'none';
+
+    const translated = await translateText(rawText, lang);
+    translatedText.textContent = translated || 'ترجمه ناموفق بود';
+
+    statusBox.style.display = 'none';
+    resultBox.style.display = 'block';
+  } catch (err) {
+    statusBox.style.display = 'none';
+    errorBox.style.display = 'block';
+    errorBox.textContent = 'خطا: ' + (err.message || 'پردازش تصویر با مشکل مواجه شد. دوباره تلاش کنید.');
+    console.error(err);
+  }
+}
+
+// Removes hallucinated junk lines that OCR sometimes invents from icons,
+// noise, or texture (lines that are mostly symbols / have very low
+// letter-digit content). Does NOT filter by text size, so small but real
+// text (captions, usernames, etc.) is kept — only clearly non-text garbage
+// like "\", "~", "455' --", "QO 1.2K" style artifacts gets removed.
+function filterMainText(data) {
+  const lines = (data.lines || []).map(l => l.text.trim()).filter(Boolean);
+  if (!lines.length) return (data.text || '').trim();
+
+  function isJunkLine(text) {
+    if (!text) return true;
+    const meaningful = (text.match(/[A-Za-z0-9\u00C0-\u024F\u0600-\u06FF\u0750-\u077F]/g) || []).length;
+    const ratio = meaningful / text.length;
+    // A real word/sentence should be mostly letters/digits, not symbols
+    if (ratio < 0.5) return true;
+    // Very short fragments that aren't actual words (stray symbols/junk)
+    if (text.length <= 2 && !/^[A-Za-z\u0600-\u06FF]+$/.test(text)) return true;
+    return false;
+  }
+
+  const cleanLines = lines.filter(text => !isJunkLine(text));
+  const finalLines = cleanLines.length ? cleanLines : lines;
+  return finalLines.join('\n').trim();
+}
+const langMap = {
+  eng: 'en', ara: 'ar', fas: 'fa', tur: 'tr', fra: 'fr',
+  deu: 'de', spa: 'es', rus: 'ru', chi_sim: 'zh', jpn: 'ja', kor: 'ko'
+};
+
+async function translateText(text, ocrLang) {
+  const source = langMap[ocrLang] || 'auto';
+  // Join broken OCR lines into continuous sentences so the translator
+  // sees full sentences instead of translating each line in isolation.
+  const joinedText = text
+    .split(/\n+/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .join(' ');
+  // Split into chunks to respect free endpoint limits
+  const chunks = joinedText.match(/[\s\S]{1,450}/g) || [joinedText];
+  let results = [];
+  for (const chunk of chunks) {
+    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' +
+      source + '&tl=fa&dt=t&q=' + encodeURIComponent(chunk);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('سرویس ترجمه رایگان در دسترس نیست');
+    const data = await res.json();
+    const piece = (data[0] || []).map(seg => seg[0]).join('');
+    results.push(piece);
+  }
+  return results.join(' ');
+}
+</script>
+</body>
+</html>
