@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ترجمه متن داخل عکس</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: Tahoma, "Vazirmatn", Arial, sans-serif;
+    background: linear-gradient(to top right, #b3ffff 55%, #ffffe3 85%);
+    margin: 0;
+    padding: 24px 16px;
+    color: #222;
+    display: flex;
+    justify-content: center;
+    position: relative;
+    min-height: 100vh;
+  }
+  #bgLayer2 {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(to top right, #ffffe3 40%, #b3ffff 70%);
+    opacity: 0;
+    animation: bgCrossfade 20s ease-in-out infinite;
+  }
+  @keyframes bgCrossfade {
+    0%   { opacity: 0; }
+    50%  { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  .wrap { max-width: 640px; width: 100%; }
+  .pageShell {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    justify-content: center;
+    width: 100%;
+    max-width: 1040px;
+    margin: 0 auto;
+  }
+  #imagePanel {
+    display: none;
+    flex: 0 0 340px;
+    position: sticky;
+    top: 24px;
+  }
+  #imagePanel.show { display: block; }
+  #imagePanel .panelLabel {
+    font-size: 13px;
+    font-weight: 700;
+    color: #C96A44;
+    margin: 0 0 8px;
+    text-align: center;
+  }
+  #imagePanel img {
+    width: 100%;
+    border-radius: 12px;
+    border: 2px solid #E8965F;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    display: block;
+    cursor: zoom-in;
+  }
+  @media (max-width: 980px) {
+    .pageShell { flex-direction: column; align-items: center; }
+    #imagePanel { position: static; flex: none; width: 100%; max-width: 640px; }
+  }
+  .pageShell.resultMode {
+    flex-direction: column;
+    align-items: center;
+  }
+  .pageShell.resultMode #imagePanel {
+    position: static;
+    flex: none;
+    width: 100%;
+    max-width: 640px;
+  }
+  .pageShell.resultMode h1,
+  .pageShell.resultMode .sub,
+  .pageShell.resultMode .card.lang-card {
+    display: none;
+  }
+
+  #lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,12,20,0.92);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    cursor: zoom-out;
+  }
+  #lightbox.show { display: flex; }
+  #lightboxImg {
+    max-width: 95%;
+    max-height: 95%;
+    object-fit: contain;
+    border-radius: 10px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  }
+  #lightboxClose {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    width: auto;
+    padding: 6px 14px;
+    font-size: 22px;
+    line-height: 1;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+    margin-top: 0;
+  }
+  #lightboxClose:hover { background: rgba(255,255,255,0.3); }
+  h1 { font-size: 36px; font-weight: 800; margin: 0 0 16px; text-align: center; color: #1F2A44; }
+  .sub {
+    text-align: center;
+    color: #000;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.7;
+    margin: 0 0 24px;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.6), 0 -1px 1px rgba(0,0,0,0.3);
+  }
+
+  .card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card.lang-card { border: 2px solid #141C30; background: #1F2A44; }
+  .card.upload-card {
+    border: 2px solid #F5DF4D;
+    background: linear-gradient(120deg, #fffbe0 0%, #F5DF4D 35%, #ddc433 50%, #F5DF4D 65%, #fffbe0 100%);
+    background-size: 300% 300%;
+    animation: goldShine 6s ease-in-out infinite;
+  }
+  @keyframes goldShine {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  label { display: block; font-size: 13px; color: #F2B84B; font-weight: 700; margin-bottom: 6px; }
+  select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px dashed #FF8C42;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #FAF3E8;
+    color: #1F2A44;
+    font-weight: 600;
+  }
+  .hint { font-size: 12px; color: #F2B84B; font-weight: 600; margin-top: 6px; line-height: 1.6; }
+
+  #drop {
+    border: 2px dashed #fff;
+    border-radius: 12px;
+    padding: 122px 16px;
+    text-align: center;
+    cursor: pointer;
+    background: #1F2A44;
+    transition: border-color .15s, background .15s;
+  }
+  #drop:hover, #drop.drag { border-color: #F2B84B; background: #263650; }
+  #drop svg { width: 32px; height: 32px; stroke: #F2B84B; margin-bottom: 8px; }
+  #uploadIcon {
+    animation: floatUp 1.4s ease-in-out infinite;
+  }
+  @keyframes floatUp {
+    0%   { transform: translateY(0); }
+    50%  { transform: translateY(-6px); }
+    100% { transform: translateY(0); }
+  }
+  #drop p { margin: 4px 0; }
+  #drop .main { font-size: 15px; font-weight: 700; color: #FAF3E8; }
+  #drop .small { font-size: 12px; color: #9fa9c0; }
+
+  #preview { display: none; text-align: center; margin-top: 16px; }
+  #cropWrap { position: relative; display: inline-block; max-width: 100%; }
+  #preview img { max-width: 100%; max-height: 280px; border-radius: 10px; border: 1px solid #ddd; display: block; }
+  #cropCanvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border-radius: 10px;
+    cursor: crosshair;
+  }
+  .cropHint { font-size: 12px; color: #000099; margin: 8px 0 0; }
+  #scanCropBtn:disabled { opacity: 1; cursor: not-allowed; }
+
+  #status {
+    display: none;
+    margin-top: 16px;
+    text-align: center;
+    font-size: 14px;
+    color: #555;
+  }
+  .pixelLoader {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    gap: 4px;
+    padding: 8px;
+    background: #fff;
+    border: 3px solid #000;
+    border-radius: 2px;
+    margin-bottom: 10px;
+  }
+  .pixelLoader span {
+    flex: 0 0 auto;
+    width: 14px;
+    aspect-ratio: 1 / 1.618;
+    background: #D7DAE3;
+    transition: background .15s ease;
+  }
+  .pixelLoader span.filled {
+    background: #000;
+  }
+  #statusText {
+    display: block;
+    font-family: "Courier New", Tahoma, monospace;
+    font-weight: 700;
+    font-size: 28px;
+    letter-spacing: 1px;
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+  .loadingDots {
+    display: inline-flex;
+    direction: ltr;
+    gap: 5px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .loadingDots span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #000;
+    opacity: 0.2;
+    animation: dotBlink 1.5s infinite ease-in-out;
+  }
+  .loadingDots span:nth-child(1) { animation-delay: 0s; }
+  .loadingDots span:nth-child(2) { animation-delay: 0.5s; }
+  .loadingDots span:nth-child(3) { animation-delay: 1s; }
+  @keyframes dotBlink {
+    0%, 100% { opacity: 0.2; }
+    16.6%    { opacity: 1; }
+    33.3%    { opacity: 0.2; }
+  }
+
+  #result { display: none; margin-top: 20px; }
+  .box {
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+  }
+  .box.original { background: #367588; border: 1px solid #2a5c6b; }
+  .box.translated { background: #939597; border: 1px solid #1F2A44; }
+  .box p.label { font-size: 12px; color: #fff; font-weight: 700; margin: 0 0 8px; }
+  .box.translated p.label { color: #fff; }
+  .box p.text { font-size: 15px; line-height: 1.8; margin: 0; white-space: pre-wrap; }
+  .box.translated p.text { font-weight: 500; font-size: 16px; color: #fff; }
+
+  #originalTextArea {
+    width: 100%;
+    min-height: 70px;
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 1.8;
+    border: 1px solid #2a5c6b;
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: #fdfaf5;
+    resize: vertical;
+    direction: ltr;
+    text-align: left;
+  }
+  .editHint { font-size: 11px; color: #eaf5f7; margin: 6px 0 0; }
+
+  button {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    background: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  button:hover { background: #f2f2f2; }
+  button.primary { background: #1F2A44; border-color: #1F2A44; color: #fff; font-weight: 600; }
+  button.primary:hover { background: #16203a; }
+  button.secondary { background: #fdfaf5; border-color: #2a5c6b; color: #367588; font-weight: 600; }
+  button.secondary:hover { background: #eef3f4; }
+  button.magenta { background: #BB2649; border-color: #BB2649; color: #fff; font-weight: 600; }
+  button.magenta:hover { background: #a11f3f; }
+  button.turquoise { background: #40E0D0; border-color: #2fb8aa; color: #063d38; font-weight: 700; }
+  button.peachfuzz { background: #fff; border-color: #f0a878; color: #000; font-weight: 700; }
+  button.peachfuzz:hover { background: #f2f2f2; }
+  button.lightblue { background: #99ccff; border-color: #7ab3f0; color: #063d38; font-weight: 700; }
+  button.lightblue:hover { background: #82bdf5; }
+  button.turquoise:hover { background: #33cfc0; }
+  button.lightgreen { background: #ccffcc; border-color: #9fe89f; color: #1a4d1a; font-weight: 700; }
+  button.lightgreen:hover { background: #b3f2b3; }
+  button.coral { background: #ff4a99; border-color: #e8408a; color: #fff; font-weight: 600; }
+  button.coral:hover { background: #e8408a; }
+
+  #errorBox {
+    display: none;
+    margin-top: 16px;
+    background: #fcebeb;
+    border: 1px solid #f0a3a3;
+    color: #a32d2d;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  #historyStrip { margin-top: 18px; border-top: 1px dashed #C96A44; padding-top: 12px; }
+  .historyLabel { font-size: 12px; color: #A47864; font-weight: 600; margin: 0 0 8px; }
+  #historyItems { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+  .historyItem {
+    flex: 0 0 auto;
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid #E8965F;
+    opacity: 0.85;
+    transition: opacity .15s, border-color .15s;
+  }
+  .historyItem:hover { opacity: 1; border-color: #40E0D0; }
+  .historyItem img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  input[type="file"] { display: none; }
+
+  #footerCredit {
+    position: fixed;
+    bottom: 8px;
+    left: 12px;
+    font-size: 11px;
+    color: #e02424;
+    font-weight: 600;
+    direction: rtl;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+<div id="bgLayer2"></div>
+
+<div class="pageShell" id="pageShell">
+<div id="imagePanel">
+  <p class="panelLabel">عکس اسکن‌شده</p>
+  <img id="resultImage" alt="عکس ترجمه‌شده" />
+</div>
+<div class="wrap">
+  <h1>ترجمه متن داخل عکس</h1>
+  <p class="sub">ابزار هوشمند برای ترجمه‌ی عکس</p>
+
+  <div class="card lang-card">
+    <label for="langSelect">زبان متن داخل عکس</label>
+    <select id="langSelect">
+      <option value="eng">انگلیسی</option>
+      <option value="ara">عربی</option>
+      <option value="fas">فارسی</option>
+      <option value="tur">ترکی</option>
+      <option value="fra">فرانسوی</option>
+      <option value="deu">آلمانی</option>
+      <option value="spa">اسپانیایی</option>
+      <option value="rus">روسی</option>
+      <option value="chi_sim">چینی</option>
+      <option value="jpn">ژاپنی</option>
+      <option value="kor">کره‌ای</option>
+    </select>
+    <p class="hint">زبان درست متن داخل عکس را انتخاب کنید تا دقت تشخیص متن بالاتر برود.</p>
+  </div>
+
+  <div class="card upload-card">
+    <div id="drop">
+      <svg id="uploadIcon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M4 17v3a2 2 0 002 2h12a2 2 0 002-2v-3"/>
+      </svg>
+      <p class="main">عکس را اینجا رها کنید یا کلیک کنید</p>
+      <p class="small">فقط فایل تصویری (JPG, PNG و ...)</p>
+      <input type="file" id="fileInput" accept="image/*" />
+    </div>
+
+    <div id="preview">
+      <div id="cropWrap">
+        <img id="imgPreview" />
+        <canvas id="cropCanvas"></canvas>
+      </div>
+      <p class="cropHint">می‌توانید با کشیدن موس، چند ناحیه از متن را برای اسکن انتخاب کنید (اختیاری)</p>
+      <label id="appendToggleWrap" style="display:none; font-size:12px; color:#5F4B8B; font-weight:600;">
+        <input type="checkbox" id="appendToggle" checked style="width:18px; height:18px; margin-left:6px; accent-color:#22c55e; cursor:pointer; vertical-align:middle;" />
+        افزودن به متن فعلی (به‌جای جایگزینی)
+      </label>
+      <button id="clearSelectionsBtn" class="lightblue" style="display:none;">پاک کردن انتخاب‌ها</button>
+      <button id="scanCropBtn" class="peachfuzz" disabled>برش و اسکن ناحیه(های) انتخاب‌شده</button>
+      <button id="scanFullBtn" class="magenta">اسکن کل عکس</button>
+      <button id="chooseDifferentBtn" class="primary">انتخاب عکس دیگر</button>
+    </div>
+
+
+
+    <div id="status">
+      <div class="pixelLoader" id="pixelLoader" aria-hidden="true"></div>
+      <span id="statusText">LOADING<span class="loadingDots"><span></span><span></span><span></span></span></span>
+    </div>
+
+    <div id="result">
+      <div class="box original">
+        <p class="label">متن اصلی شناسایی‌شده (قابل ویرایش)</p>
+        <textarea id="originalTextArea" spellcheck="false"></textarea>
+        <p class="editHint">اگر متن اشتباه تشخیص داده شده، اصلاحش کن و «ترجمه مجدد» را بزن.</p>
+        <button id="retranslateBtn" class="secondary">ترجمه مجدد با متن ویرایش‌شده</button>
+      </div>
+      <div class="box translated">
+        <p class="label">ترجمه فارسی</p>
+        <p class="text" id="translatedText"></p>
+      </div>
+      <button id="cropAgainBtn" class="coral">برش دوباره از همین عکس (اصلاح یا افزودن ناحیه‌ی دیگر)</button>
+      <button id="resetBtn" class="primary">عکس دیگر</button>
+      <button id="openGoogleBtn" class="lightgreen">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px; margin-left:4px;"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>
+        باز کردن ترجمه در گوگل ترنسلیت (سایت اصلی)
+      </button>
+    </div>
+
+    <div id="errorBox"></div>
+
+    <div id="historyStrip" style="display:none;">
+      <p class="historyLabel">تاریخچه‌ی اسکن‌های این نشست (کلیک کنید تا برگردید):</p>
+      <div id="historyItems"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div id="footerCredit">ساخته شده توسط شایان ساجدی 🇮🇷</div>
+
+<div id="lightbox">
+  <button id="lightboxClose" aria-label="بستن">×</button>
+  <img id="lightboxImg" alt="نمای کامل عکس" />
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
+<script>
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('fileInput');
+const preview = document.getElementById('preview');
+const imgPreview = document.getElementById('imgPreview');
+const cropCanvas = document.getElementById('cropCanvas');
+const scanCropBtn = document.getElementById('scanCropBtn');
+const clearSelectionsBtn = document.getElementById('clearSelectionsBtn');
+const scanFullBtn = document.getElementById('scanFullBtn');
+const chooseDifferentBtn = document.getElementById('chooseDifferentBtn');
+const statusBox = document.getElementById('status');
+const statusText = document.getElementById('statusText');
+const pixelLoader = document.getElementById('pixelLoader');
+const PIXEL_BLOCK_COUNT = 27;
+for (let i = 0; i < PIXEL_BLOCK_COUNT; i++) {
+  pixelLoader.appendChild(document.createElement('span'));
+}
+const pixelBlocks = Array.from(pixelLoader.children);
+function setPixelProgress(percent) {
+  const p = Math.max(0, Math.min(100, percent));
+  const filledCount = Math.round((p / 100) * PIXEL_BLOCK_COUNT);
+  pixelBlocks.forEach((block, i) => block.classList.toggle('filled', i < filledCount));
+}
+const resultBox = document.getElementById('result');
+const originalTextArea = document.getElementById('originalTextArea');
+const translatedText = document.getElementById('translatedText');
+const imagePanel = document.getElementById('imagePanel');
+const pageShell = document.getElementById('pageShell');
+const resultImage = document.getElementById('resultImage');
+const errorBox = document.getElementById('errorBox');
+const historyStrip = document.getElementById('historyStrip');
+const historyItems = document.getElementById('historyItems');
+const resetBtn = document.getElementById('resetBtn');
+const cropAgainBtn = document.getElementById('cropAgainBtn');
+const appendToggleWrap = document.getElementById('appendToggleWrap');
+const appendToggle = document.getElementById('appendToggle');
+const openGoogleBtn = document.getElementById('openGoogleBtn');
+const retranslateBtn = document.getElementById('retranslateBtn');
+const langSelect = document.getElementById('langSelect');
+const lightbox = document.getElementById('lightbox');
+const lightboxImg = document.getElementById('lightboxImg');
+const lightboxClose = document.getElementById('lightboxClose');
+let lastRawText = '';
+let lastSourceLang = 'auto';
+let scanHistory = []; // {thumb, original, translated} — kept in memory for this session only
+
+function openLightbox(src) {
+  if (!src) return;
+  lightboxImg.src = src;
+  lightbox.classList.add('show');
+}
+function closeLightbox() {
+  lightbox.classList.remove('show');
+  lightboxImg.src = '';
+}
+lightbox.addEventListener('click', closeLightbox);
+lightboxClose.addEventListener('click', (e) => { e.stopPropagation(); closeLightbox(); });
+lightboxImg.addEventListener('click', (e) => e.stopPropagation());
+
+resultImage.addEventListener('click', () => openLightbox(resultImage.src));
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && lightbox.classList.contains('show')) closeLightbox();
+});
+
+drop.addEventListener('click', () => fileInput.click());
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+drop.addEventListener('drop', e => {
+  e.preventDefault();
+  drop.classList.remove('drag');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+resetBtn.addEventListener('click', () => {
+  preview.style.display = 'none';
+  resultBox.style.display = 'none';
+  errorBox.style.display = 'none';
+  imagePanel.classList.remove('show');
+  pageShell.classList.remove('resultMode');
+  drop.style.display = 'block';
+  fileInput.value = '';
+  fileInput.click();
+});
+
+chooseDifferentBtn.addEventListener('click', () => {
+  preview.style.display = 'none';
+  errorBox.style.display = 'none';
+  imagePanel.classList.remove('show');
+  pageShell.classList.remove('resultMode');
+  drop.style.display = 'block';
+  fileInput.value = '';
+  fileInput.click();
+});
+
+cropAgainBtn.addEventListener('click', () => {
+  resultBox.style.display = 'none';
+  errorBox.style.display = 'none';
+  imagePanel.classList.remove('show');
+  pageShell.classList.remove('resultMode');
+  preview.style.display = 'block';
+  cropCanvas.style.display = 'block';
+  document.querySelector('.cropHint').style.display = 'block';
+  appendToggleWrap.style.display = 'block';
+  scanCropBtn.style.display = 'block';
+  scanFullBtn.style.display = 'block';
+  chooseDifferentBtn.style.display = 'block';
+  cropRects = [];
+  currentRect = null;
+  scanCropBtn.disabled = true;
+  clearSelectionsBtn.style.display = 'none';
+  setupCropCanvas();
+});
+
+openGoogleBtn.addEventListener('click', () => {
+  const joined = originalTextArea.value.split(/\n+/).map(l => l.trim()).filter(Boolean).join(' ');
+  const url = 'https://translate.google.com/?sl=' + lastSourceLang +
+    '&tl=fa&text=' + encodeURIComponent(joined) + '&op=translate';
+  window.open(url, '_blank');
+});
+
+retranslateBtn.addEventListener('click', async () => {
+  const editedText = originalTextArea.value.trim();
+  if (!editedText) return;
+  lastRawText = editedText;
+  retranslateBtn.disabled = true;
+  retranslateBtn.textContent = 'در حال ترجمه...';
+  try {
+    const translated = await translateText(editedText, langSelect.value);
+    translatedText.textContent = translated || 'ترجمه ناموفق بود';
+    updateLatestHistoryEntry(editedText, translated);
+  } catch (err) {
+    errorBox.style.display = 'block';
+    errorBox.textContent = 'خطا: ' + (err.message || 'ترجمه انجام نشد.');
+  } finally {
+    retranslateBtn.disabled = false;
+    retranslateBtn.textContent = 'ترجمه مجدد با متن ویرایش‌شده';
+  }
+});
+
+let originalImageEl = null;
+let cropRects = []; // committed selections: [{x, y, w, h}, ...] in canvas display pixels
+let currentRect = null; // the rectangle currently being dragged
+let cropDragStart = null;
+let currentDataUrl = null;
+
+function handleFile(file) {
+  if (!file.type.startsWith('image/')) return;
+
+  errorBox.style.display = 'none';
+  resultBox.style.display = 'none';
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const dataUrl = e.target.result;
+    currentDataUrl = dataUrl;
+    imgPreview.src = dataUrl;
+    preview.style.display = 'block';
+    drop.style.display = 'none';
+    cropRects = [];
+    currentRect = null;
+    scanCropBtn.disabled = true;
+    clearSelectionsBtn.style.display = 'none';
+    cropCanvas.style.display = 'block';
+    document.querySelector('.cropHint').style.display = 'block';
+    appendToggleWrap.style.display = 'none';
+    scanCropBtn.style.display = 'block';
+    scanFullBtn.style.display = 'block';
+    chooseDifferentBtn.style.display = 'block';
+    originalTextArea.value = '';
+
+    imgPreview.onload = () => {
+      originalImageEl = imgPreview;
+      setupCropCanvas();
+    };
+  };
+  reader.readAsDataURL(file);
+}
+
+function setupCropCanvas() {
+  // Match canvas pixel size to the displayed image size so drawing lines up
+  cropCanvas.width = imgPreview.clientWidth;
+  cropCanvas.height = imgPreview.clientHeight;
+  const ctx = cropCanvas.getContext('2d');
+  ctx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+}
+
+function getCanvasPos(evt) {
+  const rect = cropCanvas.getBoundingClientRect();
+  const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+  const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+  return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+function drawCropOverlay() {
+  const ctx = cropCanvas.getContext('2d');
+  ctx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+  const allRects = currentRect ? [...cropRects, currentRect] : cropRects;
+  if (!allRects.length) return;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
+  allRects.forEach(r => ctx.clearRect(r.x, r.y, r.w, r.h));
+
+  // Committed selections: dashed milky border with a number label
+  ctx.lineWidth = 2;
+  cropRects.forEach((r, i) => {
+    ctx.strokeStyle = '#FFF8E7';
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = '#FFF8E7';
+    ctx.fillRect(r.x, r.y, 20, 18);
+    ctx.fillStyle = '#000';
+    ctx.font = 'bold 12px Tahoma';
+    ctx.fillText(String(i + 1), r.x + 6, r.y + 13);
+  });
+  // In-progress selection: dashed amber
+  if (currentRect) {
+    ctx.strokeStyle = '#F2B84B';
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(currentRect.x, currentRect.y, currentRect.w, currentRect.h);
+  }
+}
+
+function startCropDrag(evt) {
+  evt.preventDefault();
+  const pos = getCanvasPos(evt);
+  cropDragStart = pos;
+  currentRect = { x: pos.x, y: pos.y, w: 0, h: 0 };
+}
+function moveCropDrag(evt) {
+  if (!cropDragStart) return;
+  evt.preventDefault();
+  const pos = getCanvasPos(evt);
+  currentRect = {
+    x: Math.min(cropDragStart.x, pos.x),
+    y: Math.min(cropDragStart.y, pos.y),
+    w: Math.abs(pos.x - cropDragStart.x),
+    h: Math.abs(pos.y - cropDragStart.y)
+  };
+  drawCropOverlay();
+}
+function endCropDrag() {
+  if (!cropDragStart) return;
+  cropDragStart = null;
+  if (currentRect && currentRect.w > 10 && currentRect.h > 10) {
+    cropRects.push(currentRect);
+  }
+  currentRect = null;
+  drawCropOverlay();
+  scanCropBtn.disabled = cropRects.length === 0;
+  clearSelectionsBtn.style.display = cropRects.length ? 'block' : 'none';
+}
+
+cropCanvas.addEventListener('mousedown', startCropDrag);
+cropCanvas.addEventListener('mousemove', moveCropDrag);
+cropCanvas.addEventListener('mouseup', endCropDrag);
+cropCanvas.addEventListener('mouseleave', endCropDrag);
+cropCanvas.addEventListener('touchstart', startCropDrag);
+cropCanvas.addEventListener('touchmove', moveCropDrag);
+cropCanvas.addEventListener('touchend', endCropDrag);
+
+clearSelectionsBtn.addEventListener('click', () => {
+  cropRects = [];
+  currentRect = null;
+  drawCropOverlay();
+  scanCropBtn.disabled = true;
+  clearSelectionsBtn.style.display = 'none';
+});
+
+function cropRectToDataUrl(rect) {
+  // Map the on-screen selection rectangle back to the image's real pixel size
+  const scaleX = originalImageEl.naturalWidth / cropCanvas.width;
+  const scaleY = originalImageEl.naturalHeight / cropCanvas.height;
+  const sx = rect.x * scaleX;
+  const sy = rect.y * scaleY;
+  const sw = rect.w * scaleX;
+  const sh = rect.h * scaleY;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = sw;
+  canvas.height = sh;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(originalImageEl, sx, sy, sw, sh, 0, 0, sw, sh);
+  return canvas.toDataURL('image/png');
+}
+
+scanFullBtn.addEventListener('click', () => {
+  processImage([currentDataUrl]);
+});
+
+scanCropBtn.addEventListener('click', () => {
+  if (!cropRects.length) return;
+  // Sort selections top-to-bottom so combined text reads in a natural order
+  const sorted = [...cropRects].sort((a, b) => a.y - b.y);
+  const croppedDataUrls = sorted.map(cropRectToDataUrl);
+  processImage(croppedDataUrls);
+});
+
+// Upscales the image and boosts contrast/grayscale to help Tesseract
+// recognize characters more accurately (especially thin or small letters).
+function preprocessImage(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        const contrast = 45; // -255..255
+        const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+        for (let i = 0; i < data.length; i += 4) {
+          let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          gray = factor * (gray - 128) + 128;
+          gray = Math.max(0, Math.min(255, gray));
+          data[i] = data[i + 1] = data[i + 2] = gray;
+        }
+        ctx.putImageData(imageData, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      } catch (err) {
+        resolve(dataUrl); // fall back to original on any processing error
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+// Inverts image colors (light↔dark) — used for the dual-scan comparison,
+// since Tesseract can be far more confident on one polarity than the other.
+function invertImage(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = 255 - data[i];
+          data[i + 1] = 255 - data[i + 1];
+          data[i + 2] = 255 - data[i + 2];
+        }
+        ctx.putImageData(imageData, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      } catch (err) {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+async function extractTextFromImage(dataUrl, lang, progressLabel) {
+  const enhancedDataUrl = await preprocessImage(dataUrl);
+
+  const recognizeOptions = {
+    logger: m => {
+      if (m.status === 'recognizing text') {
+        setPixelProgress(m.progress * 100);
+      }
+    }
+  };
+  // When English is selected, restrict Tesseract to only the English
+  // letters, digits, and common punctuation — this stops it from
+  // "inventing" random symbols out of icons/noise, since anything
+  // outside this list simply won't be matched.
+  if (lang === 'eng') {
+    recognizeOptions.tessedit_char_whitelist =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,!?'\"’‘\u201C\u201D-:;()&@";
+  }
+
+  // Run OCR twice — once normally and once on a color-inverted version —
+  // since some images have light text on a dark background and vice versa,
+  // and Tesseract is usually much more confident on one than the other.
+  // We keep whichever run has the higher confidence score automatically.
+  setPixelProgress(0);
+  const normalResult = await Tesseract.recognize(enhancedDataUrl, lang, recognizeOptions);
+
+  setPixelProgress(0);
+  const invertedDataUrl = await invertImage(enhancedDataUrl);
+  const invertedResult = await Tesseract.recognize(invertedDataUrl, lang, recognizeOptions);
+
+  const normalConfidence = (normalResult.data && normalResult.data.confidence) || 0;
+  const invertedConfidence = (invertedResult.data && invertedResult.data.confidence) || 0;
+  const ocrResult = invertedConfidence > normalConfidence ? invertedResult : normalResult;
+
+  return fixOcrSpacingAndLetters(filterMainText(ocrResult.data), lang);
+}
+
+// Repairs two OCR mistakes that were causing bad translations:
+//
+// 1) A lone lowercase "l" is almost always a misread of the pronoun "I" —
+//    the two look nearly identical in most fonts. This covers the bare
+//    word ("l" → "I") and contractions ("l'm" → "I'm", "l've" → "I've",
+//    "l'll" → "I'll", "l'd" → "I'd"), since a word-boundary check treats
+//    the apostrophe as a boundary too.
+//
+// 2) Two words glued together with no space, which happens when letters
+//    sit close enough that Tesseract doesn't detect a gap (e.g.
+//    "helloWorld"). Google Translate cannot translate a glued run like
+//    this at all, so it gets left in the output as untranslated gibberish.
+//    We detect a lowercase run (2+ letters, to avoid false positives like
+//    "iPhone") immediately followed by an uppercase letter starting a new
+//    word, and insert the missing space.
+//
+// Only runs for English source text, since both patterns are specific to
+// the Latin alphabet.
+function fixOcrSpacingAndLetters(text, lang) {
+  if (!text || lang !== 'eng') return text;
+  let result = text;
+  result = result.replace(/\bl\b/g, 'I');
+  result = result.replace(/([a-z]{2,})([A-Z][a-z])/g, '$1 $2');
+  return result;
+}
+
+async function processImage(dataUrls) {
+  const shouldAppend = appendToggleWrap.style.display !== 'none' && appendToggle.checked;
+  cropCanvas.style.display = 'none';
+  document.querySelector('.cropHint').style.display = 'none';
+  appendToggleWrap.style.display = 'none';
+  scanCropBtn.style.display = 'none';
+  clearSelectionsBtn.style.display = 'none';
+  scanFullBtn.style.display = 'none';
+  chooseDifferentBtn.style.display = 'none';
+  statusBox.style.display = 'block';
+  setPixelProgress(0);
+
+  try {
+    const lang = langSelect.value;
+    const regionTexts = [];
+    for (let i = 0; i < dataUrls.length; i++) {
+      const label = dataUrls.length > 1
+        ? `در حال شناسایی متن ناحیه ${i + 1} از ${dataUrls.length}`
+        : 'در حال شناسایی متن';
+      const text = await extractTextFromImage(dataUrls[i], lang, label);
+      if (text) regionTexts.push(text);
+    }
+    const rawText = regionTexts.join('\n');
+
+    if (!rawText) {
+      if (!shouldAppend) {
+        originalTextArea.value = 'متنی در تصویر یافت نشد';
+        translatedText.textContent = 'متنی در تصویر یافت نشد';
+      }
+      statusBox.style.display = 'none';
+      preview.style.display = 'none';
+      resultImage.src = currentDataUrl;
+      imagePanel.classList.add('show');
+      pageShell.classList.add('resultMode');
+      resultBox.style.display = 'block';
+      return;
+    }
+
+    const existingText = originalTextArea.value.trim();
+    const isPlaceholder = existingText === 'متنی در تصویر یافت نشد';
+    const combinedText = (shouldAppend && existingText && !isPlaceholder)
+      ? existingText + '\n' + rawText
+      : rawText;
+
+    originalTextArea.value = combinedText;
+    lastRawText = combinedText;
+    lastSourceLang = langMap[lang] || 'auto';
+
+    const translated = await translateText(combinedText, lang);
+    translatedText.textContent = translated || 'ترجمه ناموفق بود';
+
+    addHistoryEntry(currentDataUrl, combinedText, translated);
+
+    statusBox.style.display = 'none';
+    preview.style.display = 'none';
+    resultImage.src = currentDataUrl;
+    imagePanel.classList.add('show');
+    pageShell.classList.add('resultMode');
+    resultBox.style.display = 'block';
+  } catch (err) {
+    statusBox.style.display = 'none';
+    errorBox.style.display = 'block';
+    errorBox.textContent = 'خطا: ' + (err.message || 'پردازش تصویر با مشکل مواجه شد. دوباره تلاش کنید.');
+    console.error(err);
+  }
+}
+
+// Removes hallucinated junk lines that OCR sometimes invents from icons,
+// noise, or texture (lines that are mostly symbols / have very low
+// letter-digit content). Does NOT filter by text size, so small but real
+// text (captions, usernames, etc.) is kept — only clearly non-text garbage
+// like "\", "~", "455' --", "QO 1.2K" style artifacts gets removed.
+function filterMainText(data) {
+  const lines = (data.lines || []).map(l => l.text.trim()).filter(Boolean);
+  if (!lines.length) return (data.text || '').trim();
+
+  function isJunkLine(text) {
+    if (!text) return true;
+    const meaningful = (text.match(/[A-Za-z0-9\u00C0-\u024F\u0600-\u06FF\u0750-\u077F]/g) || []).length;
+    const ratio = meaningful / text.length;
+    // A real word/sentence should be mostly letters/digits, not symbols
+    if (ratio < 0.5) return true;
+    // Very short fragments that aren't actual words (stray symbols/junk)
+    if (text.length <= 2 && !/^[A-Za-z\u0600-\u06FF]+$/.test(text)) return true;
+    return false;
+  }
+
+  const cleanLines = lines.filter(text => !isJunkLine(text));
+  const finalLines = cleanLines.length ? cleanLines : lines;
+  return finalLines.join('\n').trim();
+}
+const langMap = {
+  eng: 'en', ara: 'ar', fas: 'fa', tur: 'tr', fra: 'fr',
+  deu: 'de', spa: 'es', rus: 'ru', chi_sim: 'zh', jpn: 'ja', kor: 'ko'
+};
+
+// Common English chat slang/abbreviations that Google Translate's free
+// engine often mistranslates literally. Expanding them to full words first
+// gives much more accurate, natural Persian translations.
+const slangMap = {
+  "2day": "today",
+  "2moro": "tomorrow",
+  "2night": "tonight",
+  "4e": "Forever",
+  "aamof": "At the matter of fact",
+  "af": "very",
+  "ama": "Ask me anything",
+  "aob": "Any other business",
+  "appt": "appointment",
+  "asap": "As soon as possible",
+  "asfaik": "As far as I know",
+  "atm": "At the moment",
+  "atw": "At the weekend",
+  "ayor": "At your own risk",
+  "b3": "Blah, Blah, Blah",
+  "b4": "before",
+  "bb": "Bye Bye",
+  "bbs": "Be back soon",
+  "bc": "Because",
+  "bday": "Birthday",
+  "bf": "Boy friend",
+  "bff": "Best friends forever",
+  "bfn": "Bye for now",
+  "brb": "Be right back",
+  "bro": "Brother",
+  "btt": "Back to topic",
+  "btw": "By the way",
+  "bw": "Best wishes",
+  "c-p": "Sleepy",
+  "cd9": "Code 9",
+  "creeper": "someone who views your profile but doesn't contact",
+  "cu": "See you",
+  "cut": "See you tomorrow",
+  "cuz": "because",
+  "cwyl": "Chat with you later",
+  "dead": "Fun",
+  "dgmw": "Don't Get me wrong",
+  "diy": "do it yourself",
+  "dm": "direct message",
+  "dob": "Date of birth",
+  "dys": "Do it yourself",
+  "e123": "Easy as 1 2 3",
+  "efa": "Estimated time arrival",
+  "eli5": "Explain like I'm 5",
+  "eod": "End of discussion",
+  "ez": "Easy",
+  "f2f": "Face to face",
+  "fack": "Full of acknowledge",
+  "faq": "frequently asked Questions",
+  "fire": "Really cool",
+  "fit": "Attractive",
+  "fomo": "fear of missing out",
+  "fr": "for real",
+  "fyi": "For your information",
+  "g2g": "got to go",
+  "gb": "Goodbye",
+  "gf": "Girl friend",
+  "gfn": "Gone for now",
+  "ghost": "When you text someone over the phone and all of a sudden they don't respond for months",
+  "gj": "Good job",
+  "gl": "Good luck",
+  "goat": "Greatest of all time",
+  "gonna": "going to",
+  "gotta": "got to",
+  "gr8": "Great",
+  "greep": "strange, weird person",
+  "hand": "Have a nice day",
+  "hbd": "Happy birthday",
+  "hf": "Have fun",
+  "hhhhhhh": "Funny",
+  "high-key": "Very obvious",
+  "hmu": "Hit me up",
+  "iac": "In any case",
+  "idby": "I don't believe in you",
+  "idc": "I don't care",
+  "idk": "I don't know",
+  "iirc": "If I remember correctly",
+  "iiwii": "It is what it is",
+  "ikr": "i know right",
+  "ilu": "I Love you",
+  "imho": "in my humble opinion",
+  "imo": "In my opinion",
+  "imu": "I miss you",
+  "inc": "Incoming",
+  "iow": "In other words",
+  "irl": "In real life",
+  "iso": "In search of",
+  "istg": "I swear to God",
+  "j/k": "Just kidding",
+  "jff": "Just for fun",
+  "kinda": "kind of",
+  "kpc": "Keeping parents clueless",
+  "l8r": "Later",
+  "lit": "Amazing",
+  "lmao": "laughing my ass off",
+  "lmn": "Let me know",
+  "lol": "Laugh out loud",
+  "low-key": "Not very assertive",
+  "m8": "Mate",
+  "mins": "minutes",
+  "mmw": "Mark my words",
+  "na": "not available",
+  "nbd": "No big deal",
+  "nc": "No comment",
+  "ngl": "not gonna lie",
+  "nony": "Anonymous person",
+  "noob": "Newbie",
+  "np": "No problem",
+  "nvm": "never mind",
+  "nyb": "Non of your business",
+  "oic": "Oh, I see",
+  "omg": "Oh my God",
+  "omw": "on my way",
+  "on fleek": "perfect, on point",
+  "osm": "Awesome",
+  "ot": "Off topic",
+  "otoh": "On the other hand",
+  "pah": "Parents at home",
+  "paw": "Parents are watching",
+  "pbb": "Parent behind back",
+  "pitr": "Parent in the room",
+  "pls": "please",
+  "plz": "please",
+  "poms": "Parent over my shoulder",
+  "pow": "Point of view",
+  "ppl": "people",
+  "qt": "Cute",
+  "rel": "Relationship",
+  "rip": "Rest in peace",
+  "rn": "right now",
+  "rofl": "Rolling on the floor laughing",
+  "salty": "To be bitter about sth/sb",
+  "sb": "somebody",
+  "sd": "Sweat dreams",
+  "sflr": "Sorry for late reply",
+  "sis": "Sister",
+  "smh": "shaking my head",
+  "snatched": "really good and fashionable",
+  "sorta": "sort of",
+  "sry": "Sorry",
+  "stan": "Fan",
+  "sth": "something",
+  "sup": "what's up",
+  "sya": "See you around",
+  "tbf": "to be fair",
+  "tbh": "To be honest",
+  "thx": "thanks",
+  "tia": "Thanks in advance",
+  "tnx": "thanks",
+  "tq": "thank you",
+  "ttfn": "Ta ta for now",
+  "ttyl": "Talk to you later",
+  "tyt": "Take your time",
+  "wanna": "want to",
+  "wtf": "What the fuck",
+  "wth": "What the hell",
+  "xoxo": "Hugs and kisses",
+  "yolo": "you only live once",
+  "yw": "You're welcome",
+  "zzz": "tired",
+
+  "break a leg": "good luck",
+  "piece of cake": "very easy",
+  "under the weather": "feeling sick",
+  "spill the beans": "reveal a secret",
+  "hit the sack": "go to sleep",
+  "let the cat out of the bag": "reveal a secret",
+  "cost an arm and a leg": "be very expensive",
+  "once in a blue moon": "very rarely",
+  "the ball is in your court": "it is your decision now",
+  "kill two birds with one stone": "accomplish two things at once",
+  "when pigs fly": "never",
+  "beat around the bush": "avoid getting to the point",
+  "cutting corners": "doing something in the cheapest or easiest way",
+  "bite the bullet": "endure a painful situation bravely",
+  "call it a day": "stop working for now",
+  "hit the nail on the head": "say something exactly right",
+  "on the same page": "in agreement",
+  "over the moon": "extremely happy",
+  "speak of the devil": "the person we were just talking about just showed up",
+  "the last straw": "the final problem that makes a situation unbearable",
+  "throw in the towel": "give up",
+  "under the radar": "without being noticed",
+  "up in the air": "uncertain",
+  "your guess is as good as mine": "I don't know either",
+  "actions speak louder than words": "what you do matters more than what you say",
+  "better late than never": "it's better to do something late than not at all",
+  "don't cry over spilled milk": "don't worry about something that already happened and can't be fixed",
+  "every cloud has a silver lining": "there is something good in every bad situation",
+  "the grass is always greener on the other side": "other people's situations always seem better than your own",
+  "when it rains it pours": "many bad things happen at once",
+  "practice makes perfect": "practicing something regularly makes you good at it",
+  "no pain no gain": "you must work hard or suffer to achieve something worthwhile",
+  "curiosity killed the cat": "being too curious can get you into trouble",
+  "don't judge a book by its cover": "don't judge someone or something only by appearance",
+  "the early bird catches the worm": "the person who acts first has the best chance of success",
+  "out of the blue": "unexpectedly",
+  "on thin ice": "in a risky or dangerous situation",
+  "get out of hand": "become out of control",
+  "a blessing in disguise": "something that seems bad at first but turns out to be good",
+  "burn the midnight oil": "work late into the night",
+  "caught red-handed": "caught in the act of doing something wrong",
+  "give someone the cold shoulder": "ignore someone deliberately",
+  "hang in there": "stay strong, don't give up",
+  "it's not rocket science": "it's not that complicated",
+  "let sleeping dogs lie": "avoid bringing up an old problem",
+  "miss the boat": "miss an opportunity",
+  "on the fence": "undecided",
+  "see eye to eye": "agree completely",
+  "the tip of the iceberg": "just a small visible part of a much bigger problem",
+  "wrap your head around": "understand something difficult"
+};
+
+// Common English phrasal verbs — literal machine translation almost always
+// mistranslates these word-by-word (e.g. "give up" translated as "بده بالا"
+// instead of "give up = quit"). Expanding them to their real meaning first
+// fixes this whole category of translation errors.
+const phrasalVerbMap = {
+  "give up": "quit, stop trying", "give in": "surrender, agree reluctantly", "give away": "reveal or donate",
+  "give back": "return something", "look forward to": "anticipate with pleasure", "look up to": "admire",
+  "look down on": "consider inferior", "look after": "take care of", "look into": "investigate",
+  "look out for": "be careful of, watch for", "put off": "postpone", "put up with": "tolerate",
+  "put down": "criticize or set down", "put together": "assemble", "put across": "communicate clearly",
+  "run into": "meet unexpectedly, or collide with", "run out of": "have no more of something",
+  "run away": "flee", "run over": "hit with a vehicle", "get away with": "avoid punishment for",
+  "get over": "recover from", "get along with": "have a good relationship with", "get through": "endure or finish",
+  "get across": "communicate an idea clearly", "get by": "manage with limited resources",
+  "get down to": "start focusing seriously on", "get rid of": "eliminate, throw away",
+  "come across": "encounter, or seem/appear as", "come up with": "think of an idea",
+  "come down with": "become sick with", "come along": "make progress, or accompany",
+  "come back": "return", "turn down": "reject", "turn up": "arrive, or increase volume",
+  "turn out": "result in the end", "turn into": "become or transform into", "turn off": "stop or disgust",
+  "turn on": "start or excite", "break down": "stop working, or become upset", "break up": "end a relationship",
+  "break out": "escape, or suddenly begin", "break in": "enter forcibly, or interrupt",
+  "back up": "support, or move backward, or make a copy", "back off": "retreat, stop pressuring",
+  "bring up": "mention a topic, or raise a child", "bring about": "cause to happen",
+  "bring back": "restore, or return with", "call off": "cancel", "call for": "require, or demand",
+  "call back": "return a phone call", "carry on": "continue", "carry out": "perform or execute a task",
+  "check in": "register at a hotel/airport", "check out": "leave a hotel, or examine",
+  "check up on": "verify or monitor", "count on": "rely on", "cut off": "disconnect or interrupt",
+  "cut down on": "reduce", "deal with": "handle a situation", "drop by": "visit briefly",
+  "drop off": "deliver, or fall asleep", "drop out": "quit school or a program",
+  "end up": "eventually result in a situation", "fall apart": "break into pieces, or collapse emotionally",
+  "fall for": "be deceived by, or fall in love with", "fall through": "fail to happen",
+  "figure out": "understand or solve", "fill in": "complete a form, or substitute",
+  "find out": "discover", "focus on": "concentrate on", "go ahead": "proceed",
+  "go through": "experience, or examine carefully", "go without": "manage without something",
+  "hand in": "submit", "hand out": "distribute", "hang on": "wait, or hold tightly",
+  "hang out": "spend time casually", "hold on": "wait", "hold up": "delay, or rob",
+  "keep up with": "stay at the same pace as", "keep on": "continue doing",
+  "let down": "disappoint", "let out": "release", "make up": "invent, or reconcile",
+  "make up for": "compensate for", "move on": "continue after a setback",
+  "pass away": "die", "pass out": "faint", "pick up": "collect, or learn casually, or answer the phone",
+  "point out": "indicate or mention", "pull off": "succeed at something difficult",
+  "pull through": "survive a difficulty", "set up": "arrange or establish",
+  "settle down": "become calm, or start a stable life", "show up": "arrive",
+  "sort out": "resolve or organize", "stand for": "represent, or tolerate",
+  "stand out": "be noticeably different/better", "stick to": "remain committed to",
+  "take after": "resemble a relative", "take off": "depart, or remove, or become successful",
+  "take over": "assume control", "take back": "retract a statement, or return an item",
+  "throw away": "discard", "try on": "test clothing by wearing it", "wear out": "become exhausted or worn",
+  "work out": "exercise, or resolve successfully", "zone out": "lose focus, daydream"
+};
+
+// Common informal texting spellings/shortcuts (distinct from the chat
+// abbreviations above) — these are typically single letters/words typed
+// quickly and often confuse literal machine translation.
+const textingMap = {
+  "u": "you", "ur": "your", "r": "are", "y": "why", "k": "okay", "kk": "okay",
+  "thru": "through", "tho": "though", "prolly": "probably", "def": "definitely",
+  "obvi": "obviously", "totes": "totally", "ily": "i love you", "hru": "how are you",
+  "wyd": "what are you doing", "ofc": "of course", "rly": "really", "srsly": "seriously",
+  "tmr": "tomorrow", "tmrw": "tomorrow", "dis": "this", "dat": "that", "wat": "what",
+  "wut": "what", "bday": "birthday", "msg": "message", "pic": "picture", "pics": "pictures",
+  "vid": "video", "convo": "conversation", "info": "information", "probs": "probably",
+  "prob": "probably", "jelly": "jealous", "jealy": "jealous"
+};
+
+// Current Gen Z slang and meme phrases. These trend fast, so this list
+// focuses on terms that have stayed mainstream across the last couple of
+// years rather than one-week fads. Same idea as the maps above: a literal
+// word-for-word translation of these produces nonsense, so we swap in the
+// plain-English meaning first.
+const genZMemeMap = {
+  "rizz": "charisma, especially the ability to attract a romantic partner",
+  "no cap": "no lie, seriously",
+  "bussin": "extremely good, especially describing food",
+  "sus": "suspicious",
+  "sigma": "an independent, unbothered type of person who doesn't seek approval",
+  "based": "confidently being yourself without caring what others think",
+  "cringe": "embarrassing or awkward to watch",
+  "mid": "mediocre, unimpressive",
+  "goated": "considered the greatest of all time at something",
+  "slay": "did something excellently, or looked great",
+  "simp": "someone who goes out of their way to please a person they're romantically interested in",
+  "npc": "someone acting mindlessly or predictably, as if they have no free will",
+  "ratio": "a reply or comment that got more engagement than the original post, implying the original was unpopular",
+  "delulu": "delusional, especially about an unlikely personal fantasy, said jokingly",
+  "aura": "a person's perceived charisma or coolness, sometimes jokingly measured in points",
+  "glazing": "excessively praising or hyping someone up",
+  "brain rot": "silly, low-quality online content consumed so much that it feels numbing",
+  "touch grass": "go outside and experience real life instead of being online too much",
+  "the ick": "a sudden feeling of being turned off by someone you were previously interested in",
+  "living rent free": "something, usually a thought or image, that someone can't stop thinking about",
+  "understood the assignment": "did something exactly right or impressively well",
+  "it's giving": "it has the vibe or energy of",
+  "vibe check": "an informal check of someone's mood or energy",
+  "main character energy": "acting confidently, like the most important person in the situation",
+  "hits different": "feels unusually good or impactful in this particular situation",
+  "say less": "I understand, no need to explain further",
+  "on god": "I swear, for real",
+  "periodt": "used to emphasize that a statement is final and not up for debate",
+  "fr fr": "for real, seriously",
+  "bffr": "be for real",
+  "chronically online": "spending so much time online that one's behavior or references feel disconnected from real life",
+  "take the l": "accept a defeat or failure",
+  "take the w": "accept or claim a success",
+  "lowkey": "somewhat, or secretly",
+  "highkey": "very obviously, openly",
+  "girl math": "the humorous, not-quite-logical reasoning people jokingly use to justify a purchase",
+  "girl dinner": "a small, random assortment of snack foods eaten as a full meal, often alone",
+  "skibidi": "a nonsense word from a viral meme series, used playfully with no fixed meaning"
+};
+
+function expandSlang(text) {
+  let result = text;
+  for (const [abbr, full] of Object.entries(slangMap)) {
+    const re = new RegExp('\\b' + abbr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+    result = result.replace(re, full);
+  }
+  for (const [phrase, meaning] of Object.entries(phrasalVerbMap)) {
+    const re = new RegExp('\\b' + phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+    result = result.replace(re, meaning);
+  }
+  for (const [abbr, full] of Object.entries(textingMap)) {
+    const re = new RegExp('\\b' + abbr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+    result = result.replace(re, full);
+  }
+  for (const [term, meaning] of Object.entries(genZMemeMap)) {
+    const re = new RegExp('\\b' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+    result = result.replace(re, meaning);
+  }
+  return result;
+}
+
+// In-memory history of this session's scans — persists while switching
+// between images (cleared only on page refresh, never deleted by the app).
+let historyEntries = [];
+const MAX_HISTORY_ENTRIES = 30;
+
+function renderHistory() {
+  historyItems.innerHTML = '';
+  historyEntries.forEach(entry => {
+    const item = document.createElement('div');
+    item.className = 'historyItem';
+    item.title = entry.original.slice(0, 80);
+    const img = document.createElement('img');
+    img.src = entry.thumb;
+    item.appendChild(img);
+    item.addEventListener('click', () => {
+      originalTextArea.value = entry.original;
+      translatedText.textContent = entry.translated;
+      lastRawText = entry.original;
+      drop.style.display = 'none';
+      preview.style.display = 'none';
+      errorBox.style.display = 'none';
+      resultImage.src = entry.thumb;
+      imagePanel.classList.add('show');
+      pageShell.classList.add('resultMode');
+      resultBox.style.display = 'block';
+    });
+    historyItems.appendChild(item);
+  });
+  historyStrip.style.display = historyEntries.length ? 'block' : 'none';
+}
+
+function addHistoryEntry(thumb, original, translated) {
+  historyEntries.push({ thumb, original, translated });
+  if (historyEntries.length > MAX_HISTORY_ENTRIES) historyEntries.shift();
+  renderHistory();
+}
+
+function updateLatestHistoryEntry(original, translated) {
+  if (!historyEntries.length) return;
+  const last = historyEntries[historyEntries.length - 1];
+  last.original = original;
+  last.translated = translated;
+  renderHistory();
+}
+
+async function translateText(text, ocrLang) {
+  const source = langMap[ocrLang] || 'auto';
+  // Join broken OCR lines into continuous sentences so the translator
+  // sees full sentences instead of translating each line in isolation.
+  let joinedText = text
+    .split(/\n+/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .join(' ');
+  // Expand common English chat slang/abbreviations for a more accurate translation
+  if (source === 'en') {
+    joinedText = expandSlang(joinedText);
+  }
+  // Split into chunks to respect free endpoint limits
+  const chunks = joinedText.match(/[\s\S]{1,450}/g) || [joinedText];
+  let results = [];
+  for (const chunk of chunks) {
+    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' +
+      source + '&tl=fa&dt=t&q=' + encodeURIComponent(chunk);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('سرویس ترجمه رایگان در دسترس نیست');
+    const data = await res.json();
+    const piece = (data[0] || []).map(seg => seg[0]).join('');
+    results.push(piece);
+  }
+  return cleanTranslationOutput(results.join(' '));
+}
+
+// Strips decorative "sticker" symbols and stray junk marks that sometimes
+// survive translation — things like currency signs, bullets, or emblem-style
+// glyphs picked up from stickers/watermarks in the source image. This only
+// removes symbol characters; normal Persian/Latin letters, numbers, and
+// everyday sentence punctuation (commas, periods, question marks, etc.) are
+// left untouched.
+function cleanTranslationOutput(text) {
+  if (!text) return text;
+  let result = text;
+  result = result.replace(/[$€£¥¢₩₹§¶†‡®™©~^_`|•●◦▪▫♦♥♣♠★☆✓✗✔✘➤➔]/g, '');
+  result = result.replace(/\(\s*\)/g, '');
+  result = result.replace(/[ \t]{2,}/g, ' ');
+  result = result.replace(/\s+([،,.!؟?])/g, '$1');
+  return result.trim();
+}
+</script>
+</body>
+</html>
